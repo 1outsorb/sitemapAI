@@ -22,7 +22,8 @@
         >
           Allocations
         </NuxtLink>
-        <!-- Hambuger Icon -->
+        
+        <!-- Hambuger Icon 
         <div class="relative">
           <button @click="toggleMenu" class="cursor-pointer">
             <svg class="w-6 h-6" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
@@ -41,6 +42,8 @@
             </ul>
           </div>
         </div>
+        -->
+
       </div>
     </nav>
 
