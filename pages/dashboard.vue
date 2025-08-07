@@ -30,6 +30,14 @@
       </div>
     </div>
 
+    <!-- EChart Bar（不需要client-only） -->
+    <div class="max-w-6xl mx-auto px-8 mb-8">
+      <div class="bg-white rounded-xl shadow p-6">
+        <div class="font-semibold text-lg mb-4 text-[#2C2F3A]">Clients by State</div>
+        <EChartBar />
+      </div>
+    </div>
+
     <!-- Recent Activity -->
     <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 px-8">
       <div class="md:col-span-2"></div>
@@ -53,6 +61,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import EChartBar from '~/components/EChartBar.vue'
 
 const stats = ref({
   totalClients: 17,
@@ -67,5 +76,9 @@ const recentChanges = [
   { id: 3, client: 'Gamma Solutions', action: 'Deleted', time: '1 day ago' },
 ]
 </script>
+
+
+
+
 
 
