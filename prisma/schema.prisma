@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model files {
+  file_id     BigInt   @id @default(autoincrement())
+  file_name   String
+  file_type   String?
+  file_size   BigInt?
+  sha256      String?  @unique
+  uploaded_at DateTime @default(now())
+}
+
+model company {
+  company_id      BigInt  @id @default(autoincrement())
+  company_name    String?
+  company_address String?
+  sites           sites[]
+}
+
+model sites {
+  site_id    BigInt       @id @default(autoincrement())
+  company_id BigInt
+  site_name  String
+  area_tasks area_tasks[]
+  company    company      @relation(fields: [company_id], references: [company_id], onDelete: Cascade)
+}
+
+model tasks {
+  task_id    BigInt       @id @default(autoincrement())
+  task_name  String
+  area_tasks area_tasks[]
+}
+
+model area_tasks {
+  area_task_id BigInt      @id @default(autoincrement())
+  site_id      BigInt
+  task_id      BigInt
+  site         sites       @relation(fields: [site_id], references: [site_id], onDelete: Cascade)
+  task         tasks       @relation(fields: [task_id], references: [task_id])
+  schedules    schedules[]
+}
+
+model schedules {
+  schedule_id    BigInt        @id @default(autoincrement())
+  area_task_id   BigInt
+  rule_type      schedule_rule
+  mon            Boolean?
+  tue            Boolean?
+  wed            Boolean?
+  thu            Boolean?
+  fri            Boolean?
+  sat            Boolean?
+  sun            Boolean?
+  by_month_day   Int[]
+  ordinal_week   Int?
+  ordinal_wday   Int?
+  occurs_on      DateTime?
+  effective_from DateTime?
+  effective_to   DateTime?
+  rrule          String?
+  area_task      area_tasks    @relation(fields: [area_task_id], references: [area_task_id], onDelete: Cascade)
+}
+
+enum schedule_rule {
+  WEEKLY
+  MONTHLY
+  ONE_OFF
+}

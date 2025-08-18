@@ -1,5 +1,6 @@
 <template>
   <div class="min-h-screen bg-[#F5F6F8] text-[#1F2025]">
+    
     <!-- Navigation Bar -->
     <nav class="flex items-center justify-between px-6 py-8 bg-[#2C2F3A] shadow-md relative">
       <NuxtLink to="/" class="text-2xl font-semibold tracking-wide text-white hover:underline transition">sitemapAI</NuxtLink>
@@ -22,7 +23,7 @@
         >
           Allocations
         </NuxtLink>
-        
+
         <!-- Hambuger Icon 
         <div class="relative">
           <button @click="toggleMenu" class="cursor-pointer">
