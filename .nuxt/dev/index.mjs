@@ -1,5 +1,5 @@
 import process from 'node:process';globalThis._importMeta_={url:import.meta.url,env:process.env};import { tmpdir } from 'node:os';
-import { defineEventHandler, handleCacheHeaders, splitCookiesString, createEvent, fetchWithEvent, isEvent, eventHandler, setHeaders, sendRedirect, proxyRequest, getRequestHeader, setResponseHeaders, setResponseStatus, send, getRequestHeaders, setResponseHeader, appendResponseHeader, getRequestURL, getResponseHeader, removeResponseHeader, createError, getQuery as getQuery$1, readBody, createApp, createRouter as createRouter$1, toNodeListener, lazyEventHandler, getResponseStatus, getRouterParam, getResponseStatusText } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/h3/dist/index.mjs';
+import { defineEventHandler, handleCacheHeaders, splitCookiesString, createEvent, fetchWithEvent, isEvent, eventHandler, setHeaders, sendRedirect, proxyRequest, getRequestHeader, setResponseHeaders, setResponseStatus, send, getRequestHeaders, setResponseHeader, appendResponseHeader, getRequestURL, getResponseHeader, removeResponseHeader, createError, getQuery as getQuery$1, readBody, createApp, createRouter as createRouter$1, toNodeListener, lazyEventHandler, getResponseStatus, getRouterParam, readFormData, getResponseStatusText } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/h3/dist/index.mjs';
 import { Server } from 'node:http';
 import { resolve, dirname, join } from 'node:path';
 import nodeCrypto from 'node:crypto';
@@ -1523,10 +1523,12 @@ async function getIslandContext(event) {
   return ctx;
 }
 
+const _lazy_NeXAF_ = () => Promise.resolve().then(function () { return analyze_post$1; });
 const _lazy_z5cH3q = () => Promise.resolve().then(function () { return renderer$1; });
 
 const handlers = [
   { route: '', handler: _MpXLvc, lazy: false, middleware: true, method: undefined },
+  { route: '/api/analyze', handler: _lazy_NeXAF_, lazy: true, middleware: false, method: "post" },
   { route: '/__nuxt_error', handler: _lazy_z5cH3q, lazy: true, middleware: false, method: undefined },
   { route: '/__nuxt_island/**', handler: _SxA8c9, lazy: false, middleware: false, method: undefined },
   { route: '/**', handler: _lazy_z5cH3q, lazy: true, middleware: false, method: undefined }
@@ -1855,6 +1857,101 @@ const styles = {};
 const styles$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
   __proto__: null,
   default: styles
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const analyze_post = defineEventHandler(async (event) => {
+  const endpoint = process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT || process.env.AZURE_DI_ENDPOINT;
+  const key = process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY || process.env.AZURE_DI_KEY;
+  const modelId = process.env.AZURE_DOCUMENT_INTELLIGENCE_MODEL || process.env.AZURE_DI_MODEL_ID || "prebuilt-layout";
+  if (!endpoint || !key) {
+    throw createError({ statusCode: 500, statusMessage: "Missing Azure env vars" });
+  }
+  const form = await readFormData(event);
+  const file = form.get("file");
+  if (!file || typeof file === "string") {
+    throw createError({ statusCode: 400, statusMessage: "No file uploaded" });
+  }
+  const arrayBuf = await file.arrayBuffer();
+  const body = Buffer.from(arrayBuf);
+  const baseEP = endpoint.replace(/\/$/, "");
+  const tries = [
+    {
+      name: "formrecognizer-2023-07-31",
+      url: `${baseEP}/formrecognizer/documentModels/${encodeURIComponent(modelId)}:analyze?api-version=2023-07-31`
+    }
+  ];
+  let opLocation = null;
+  let lastErrorText = "";
+  for (const t of tries) {
+    const res = await fetch(t.url, {
+      method: "POST",
+      headers: {
+        "Ocp-Apim-Subscription-Key": key,
+        "Content-Type": "application/octet-stream"
+      },
+      body
+    });
+    if (res.status === 202) {
+      opLocation = res.headers.get("operation-location");
+      if (!opLocation) {
+        throw createError({ statusCode: 500, statusMessage: `Missing operation-location on ${t.name}` });
+      }
+      console.log(`[Azure] accepted on ${t.name}, opLocation=`, opLocation);
+      break;
+    } else {
+      const text = await res.text().catch(() => "");
+      lastErrorText = text;
+      console.error(`[Azure] ${t.name} rejected: ${res.status} ${res.statusText}
+${text}`);
+    }
+  }
+  if (!opLocation) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: `Analyze request not accepted. Azure said: ${lastErrorText || "no body"}`
+    });
+  }
+  const poll = async () => {
+    const r = await fetch(opLocation, {
+      headers: { "Ocp-Apim-Subscription-Key": key }
+    });
+    const text = await r.text();
+    if (!r.ok) {
+      console.error("[Azure] polling error:", r.status, r.statusText, text);
+      throw createError({ statusCode: r.status, statusMessage: text || "Polling failed" });
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      console.error("[Azure] polling invalid JSON:", text);
+      throw createError({ statusCode: 500, statusMessage: "Invalid JSON from polling" });
+    }
+  };
+  const start = Date.now();
+  let data;
+  while (true) {
+    data = await poll();
+    const status = data == null ? void 0 : data.status;
+    if (status === "succeeded") break;
+    if (status === "failed" || status === "partiallySucceeded") {
+      console.error("[Azure] LRO failed:", JSON.stringify(data));
+      throw createError({ statusCode: 500, statusMessage: `LRO failed: ${JSON.stringify(data)}` });
+    }
+    if (Date.now() - start > 12e4) {
+      throw createError({ statusCode: 504, statusMessage: "Polling timeout" });
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return {
+    modelId,
+    status: data.status,
+    content: JSON.stringify(data, null, 2)
+  };
+});
+
+const analyze_post$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: analyze_post
 }, Symbol.toStringTag, { value: 'Module' }));
 
 function renderPayloadResponse(ssrContext) {
