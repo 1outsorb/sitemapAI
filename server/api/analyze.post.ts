@@ -11,9 +11,9 @@ export default defineEventHandler(async (event) => {
   const modelId =
     process.env.AZURE_DOCUMENT_INTELLIGENCE_MODEL ||
     process.env.AZURE_DI_MODEL_ID ||
-    'prebuilt-layout'
+    'prebuilt-layout' 
 
-  if (!endpoint || !key) {
+  if (!endpoint || !key || !modelId) {
     throw createError({ statusCode: 500, statusMessage: 'Missing Azure env vars' })
   }
 
@@ -27,60 +27,44 @@ export default defineEventHandler(async (event) => {
   const body = Buffer.from(arrayBuf)
 
   const baseEP = endpoint.replace(/\/$/, '')
-  const tries = [
-  {
-    name: 'formrecognizer-2023-07-31',
-    url: `${baseEP}/formrecognizer/documentModels/${encodeURIComponent(modelId)}:analyze?api-version=2023-07-31`,
-  }
-]
+  const apiVersion = '2024-11-30' 
 
+  const url = `${baseEP}/formrecognizer/documentModels/${encodeURIComponent(modelId)}:analyze?api-version=${apiVersion}`
 
-  let opLocation: string | null = null
-  let lastErrorText = ''
-  for (const t of tries) {
-    const res = await fetch(t.url, {
-      method: 'POST',
-      headers: {
-        'Ocp-Apim-Subscription-Key': key,
-        'Content-Type': 'application/octet-stream',
-      },
-      body,
-    })
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Ocp-Apim-Subscription-Key': key,
+      'Content-Type': 'application/octet-stream',
+    },
+    body,
+  })
 
-    if (res.status === 202) {
-      opLocation = res.headers.get('operation-location')
-      if (!opLocation) {
-        throw createError({ statusCode: 500, statusMessage: `Missing operation-location on ${t.name}` })
-      }
-      console.log(`[Azure] accepted on ${t.name}, opLocation=`, opLocation)
-      break
-    } else {
-      const text = await res.text().catch(() => '')
-      lastErrorText = text
-      console.error(`[Azure] ${t.name} rejected: ${res.status} ${res.statusText}\n${text}`)
-    }
-  }
-
-  if (!opLocation) {
+  if (res.status !== 202) {
+    const text = await res.text().catch(() => '')
     throw createError({
-      statusCode: 400,
-      statusMessage: `Analyze request not accepted. Azure said: ${lastErrorText || 'no body'}`,
+      statusCode: res.status,
+      statusMessage: `Azure rejected request: ${res.statusText}`,
+      data: text,
     })
+  }
+
+  const opLocation = res.headers.get('operation-location')
+  if (!opLocation) {
+    throw createError({ statusCode: 500, statusMessage: `Missing operation-location in response` })
   }
 
   const poll = async () => {
-    const r = await fetch(opLocation!, {
+    const r = await fetch(opLocation, {
       headers: { 'Ocp-Apim-Subscription-Key': key },
     })
     const text = await r.text()
     if (!r.ok) {
-      console.error('[Azure] polling error:', r.status, r.statusText, text)
       throw createError({ statusCode: r.status, statusMessage: text || 'Polling failed' })
     }
     try {
       return JSON.parse(text)
     } catch {
-      console.error('[Azure] polling invalid JSON:', text)
       throw createError({ statusCode: 500, statusMessage: 'Invalid JSON from polling' })
     }
   }
@@ -92,7 +76,6 @@ export default defineEventHandler(async (event) => {
     const status = data?.status
     if (status === 'succeeded') break
     if (status === 'failed' || status === 'partiallySucceeded') {
-      console.error('[Azure] LRO failed:', JSON.stringify(data))
       throw createError({ statusCode: 500, statusMessage: `LRO failed: ${JSON.stringify(data)}` })
     }
     if (Date.now() - start > 120000) {

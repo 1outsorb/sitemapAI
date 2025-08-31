@@ -38,7 +38,7 @@
       </div>
     </div>
 
-    <!-- Recent Activity -->
+    <!-- Recent Activity 
     <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 px-8">
       <div class="md:col-span-2"></div>
       <div class="bg-white rounded-xl shadow p-6">
@@ -56,6 +56,7 @@
         </ul>
       </div>
     </div>
+    -->
   </div>
 </template>
 
