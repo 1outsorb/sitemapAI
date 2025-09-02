@@ -7,7 +7,6 @@ import { parentPort, threadId } from 'node:worker_threads';
 import { escapeHtml } from 'file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/@vue/shared/dist/shared.cjs.js';
 import { DefaultAzureCredential } from 'file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/@azure/identity/dist/esm/index.js';
 import { DocumentAnalysisClient, AzureKeyCredential } from 'file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/@azure/ai-form-recognizer/dist/esm/index.js';
-import { promises, createReadStream } from 'node:fs';
 import { createRenderer, getRequestDependencies, getPreloadLinks, getPrefetchLinks } from 'file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/vue-bundle-renderer/dist/runtime.mjs';
 import { parseURL, withoutBase, joinURL, getQuery, withQuery, withTrailingSlash, decodePath, withLeadingSlash, withoutTrailingSlash, joinRelativeURL } from 'file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/ufo/dist/index.mjs';
 import { renderToString } from 'file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/vue/server-renderer/index.mjs';
@@ -32,6 +31,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { stringify, uneval } from 'file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/devalue/index.js';
 import { captureRawStackTrace, parseRawStackTrace } from 'file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/errx/dist/index.js';
 import { isVNode, toValue, isRef } from 'file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/vue/index.mjs';
+import { promises } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname as dirname$1, resolve as resolve$1 } from 'file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/pathe/dist/index.mjs';
 import { createHead as createHead$1, propsToString, renderSSRHead } from 'file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/unhead/dist/server.mjs';
@@ -1118,7 +1118,22 @@ const plugins = [
 _ZaBSs6Kl0gYWAqbYOMqcE_f0St0lPcefmMXlrYouo
 ];
 
-const assets = {};
+const assets = {
+  "/index.mjs": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"12f1c-AOsvwKW+pLfGw8BSONeVcVtWzDc\"",
+    "mtime": "2025-09-02T05:19:45.695Z",
+    "size": 77596,
+    "path": "index.mjs"
+  },
+  "/index.mjs.map": {
+    "type": "application/json",
+    "etag": "\"47082-ndf+xgr3UKQSam4IroqmRYI8iYY\"",
+    "mtime": "2025-09-02T05:19:45.695Z",
+    "size": 290946,
+    "path": "index.mjs.map"
+  }
+};
 
 function readAsset (id) {
   const serverDir = dirname$1(fileURLToPath(globalThis._importMeta_.url));
@@ -1871,6 +1886,11 @@ const analyze_post = defineEventHandler(async (event) => {
       statusMessage: "Missing Azure env vars"
     });
   }
+  new DefaultAzureCredential();
+  const client = new DocumentAnalysisClient(
+    endpoint,
+    new AzureKeyCredential(key)
+  );
   const form = await readFormData(event);
   const file = form.get("file");
   if (!file || typeof file === "string") {
@@ -1878,78 +1898,6 @@ const analyze_post = defineEventHandler(async (event) => {
   }
   const arrayBuf = await file.arrayBuffer();
   const body = Buffer.from(arrayBuf);
-  const baseEP = endpoint.replace(/\/$/, "");
-  const apiVersion = "2024-11-30";
-  const url = `${baseEP}/documentintelligence/documentModels/${encodeURIComponent(
-    modelId
-  )}:analyze?api-version=${apiVersion}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Ocp-Apim-Subscription-Key": key,
-      "Content-Type": "application/octet-stream"
-    },
-    body
-  });
-  if (res.status !== 202) {
-    const text = await res.text().catch(() => "");
-    throw createError({
-      statusCode: res.status,
-      statusMessage: `Azure rejected request: ${res.statusText}`,
-      data: text
-    });
-  }
-  const opLocation = res.headers.get("operation-location");
-  if (!opLocation) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: `Missing operation-location in response`
-    });
-  }
-  const poll = async () => {
-    const r = await fetch(opLocation, {
-      headers: { "Ocp-Apim-Subscription-Key": key }
-    });
-    const text = await r.text();
-    if (!r.ok) {
-      throw createError({
-        statusCode: r.status,
-        statusMessage: text || "Polling failed"
-      });
-    }
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw createError({
-        statusCode: 500,
-        statusMessage: "Invalid JSON from polling"
-      });
-    }
-  };
-  const start = Date.now();
-  let data;
-  while (true) {
-    data = await poll();
-    const status = data == null ? void 0 : data.status;
-    if (status === "succeeded") break;
-    if (status === "failed" || status === "partiallySucceeded") {
-      throw createError({
-        statusCode: 500,
-        statusMessage: `LRO failed: ${JSON.stringify(data)}`
-      });
-    }
-    if (Date.now() - start > 12e4) {
-      throw createError({ statusCode: 504, statusMessage: "Polling timeout" });
-    }
-    await new Promise((r) => setTimeout(r, 1500));
-  }
-  new DefaultAzureCredential();
-  const client = new DocumentAnalysisClient(
-    endpoint,
-    new AzureKeyCredential(key)
-  );
-  const path = "./test.pdf";
-  createReadStream(path);
   const poller = await client.beginAnalyzeDocument(modelId, body, {
     onProgress: ({ status }) => {
       console.log(`status: ${status}`);
@@ -1983,8 +1931,6 @@ const analyze_post = defineEventHandler(async (event) => {
   }
   return {
     modelId,
-    status: data.status,
-    content: JSON.stringify(data, null, 2),
     documents,
     pages,
     tables
