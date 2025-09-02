@@ -1,1 +1,1 @@
-export { default } from "file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/@nuxt/vite-builder/dist/runtime/client.manifest.mjs"
+export { default } from "file:///Users/marvisleung/Documents/Uni/sitemapAI/node_modules/@nuxt/vite-builder/dist/runtime/client.manifest.mjs"
