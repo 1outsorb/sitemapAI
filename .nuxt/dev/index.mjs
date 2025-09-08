@@ -5,6 +5,8 @@ import { resolve, dirname, join } from 'node:path';
 import nodeCrypto from 'node:crypto';
 import { parentPort, threadId } from 'node:worker_threads';
 import { escapeHtml } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/@vue/shared/dist/shared.cjs.js';
+import { DefaultAzureCredential } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/@azure/identity/dist/esm/index.js';
+import { DocumentAnalysisClient, AzureKeyCredential } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/@azure/ai-form-recognizer/dist/esm/index.js';
 import { createRenderer, getRequestDependencies, getPreloadLinks, getPrefetchLinks } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/vue-bundle-renderer/dist/runtime.mjs';
 import { parseURL, withoutBase, joinURL, getQuery, withQuery, withTrailingSlash, decodePath, withLeadingSlash, withoutTrailingSlash, joinRelativeURL } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/ufo/dist/index.mjs';
 import { renderToString } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/vue/server-renderer/index.mjs';
@@ -1864,8 +1866,16 @@ const analyze_post = defineEventHandler(async (event) => {
   const key = process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY || process.env.AZURE_DI_KEY;
   const modelId = process.env.AZURE_DOCUMENT_INTELLIGENCE_MODEL || process.env.AZURE_DI_MODEL_ID || "prebuilt-layout";
   if (!endpoint || !key || !modelId) {
-    throw createError({ statusCode: 500, statusMessage: "Missing Azure env vars" });
+    throw createError({
+      statusCode: 500,
+      statusMessage: "Missing Azure env vars"
+    });
   }
+  new DefaultAzureCredential();
+  const client = new DocumentAnalysisClient(
+    endpoint,
+    new AzureKeyCredential(key)
+  );
   const form = await readFormData(event);
   const file = form.get("file");
   if (!file || typeof file === "string") {
@@ -1873,61 +1883,42 @@ const analyze_post = defineEventHandler(async (event) => {
   }
   const arrayBuf = await file.arrayBuffer();
   const body = Buffer.from(arrayBuf);
-  const baseEP = endpoint.replace(/\/$/, "");
-  const apiVersion = "2024-11-30";
-  const url = `${baseEP}/formrecognizer/documentModels/${encodeURIComponent(modelId)}:analyze?api-version=${apiVersion}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Ocp-Apim-Subscription-Key": key,
-      "Content-Type": "application/octet-stream"
-    },
-    body
+  const poller = await client.beginAnalyzeDocument(modelId, body, {
+    onProgress: ({ status }) => {
+      console.log(`status: ${status}`);
+    }
   });
-  if (res.status !== 202) {
-    const text = await res.text().catch(() => "");
-    throw createError({
-      statusCode: res.status,
-      statusMessage: `Azure rejected request: ${res.statusText}`,
-      data: text
-    });
+  const { documents, pages, tables } = await poller.pollUntilDone();
+  console.log("Documents:");
+  for (const document of documents || []) {
+    console.log(`Type: ${document.docType}`);
+    console.log("Fields:");
+    for (const [name, field] of Object.entries(document.fields)) {
+      console.log(
+        `Field ${name} has content '${field.content}' with a confidence score of ${field.confidence}`
+      );
+    }
   }
-  const opLocation = res.headers.get("operation-location");
-  if (!opLocation) {
-    throw createError({ statusCode: 500, statusMessage: `Missing operation-location in response` });
+  console.log("Pages:");
+  for (const page of pages || []) {
+    console.log(
+      `Page number: ${page.pageNumber} (${page.width}x${page.height} ${page.unit})`
+    );
   }
-  const poll = async () => {
-    const r = await fetch(opLocation, {
-      headers: { "Ocp-Apim-Subscription-Key": key }
-    });
-    const text = await r.text();
-    if (!r.ok) {
-      throw createError({ statusCode: r.status, statusMessage: text || "Polling failed" });
+  console.log("Tables:");
+  for (const table of tables || []) {
+    console.log(`- Table (${table.columnCount}x${table.rowCount})`);
+    for (const cell of table.cells) {
+      console.log(
+        `  - cell (${cell.rowIndex},${cell.columnIndex}) "${cell.content}"`
+      );
     }
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw createError({ statusCode: 500, statusMessage: "Invalid JSON from polling" });
-    }
-  };
-  const start = Date.now();
-  let data;
-  while (true) {
-    data = await poll();
-    const status = data == null ? void 0 : data.status;
-    if (status === "succeeded") break;
-    if (status === "failed" || status === "partiallySucceeded") {
-      throw createError({ statusCode: 500, statusMessage: `LRO failed: ${JSON.stringify(data)}` });
-    }
-    if (Date.now() - start > 12e4) {
-      throw createError({ statusCode: 504, statusMessage: "Polling timeout" });
-    }
-    await new Promise((r) => setTimeout(r, 1500));
   }
   return {
     modelId,
-    status: data.status,
-    content: JSON.stringify(data, null, 2)
+    documents,
+    pages,
+    tables
   };
 });
 

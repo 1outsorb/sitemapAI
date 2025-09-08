@@ -29,7 +29,8 @@ export default defineEventHandler(async (event) => {
   const baseEP = endpoint.replace(/\/$/, '')
   const apiVersion = '2024-11-30' 
 
-  const url = `${baseEP}/formrecognizer/documentModels/${encodeURIComponent(modelId)}:analyze?api-version=${apiVersion}`
+  const url = `${baseEP}/documentintelligence/documentModels/${encodeURIComponent(modelId)}:analyze?api-version=${apiVersion}`
+
 
   const res = await fetch(url, {
     method: 'POST',
@@ -90,4 +91,3 @@ export default defineEventHandler(async (event) => {
     content: JSON.stringify(data, null, 2),
   }
 })
-
