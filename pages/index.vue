@@ -17,12 +17,7 @@
         >
           Sites
         </NuxtLink>
-        <NuxtLink
-          to="/allocations"
-          class="px-4 py-2 rounded font-medium text-white hover:bg-[#3A3E4D] transition"
-        >
-          Allocations
-        </NuxtLink>
+        
 
         <!-- Hambuger Icon 
         <div class="relative">
@@ -50,8 +45,18 @@
 
     <!-- Main Content -->
     <div class="p-10 text-center">
+      <br></br>
+      <br></br>
+      <br></br>
       <h1 class="text-4xl font-bold text-[#1F2025]">Welcome to sitemap</h1>
-      <p class="text-[#5A5A5A] mt-4">This is the prototype homepage.</p>
+      <br></br>
+      <br></br>
+      <br></br>
+      <p class="text-[#5A5A5A] mt-4">Welcome to our intelligent document management platform powered by Azure AI and Prisma.
+                                     This web application allows you to upload documents such as contracts, compliance checklists,
+                                     or task sheets, which are then automatically analyzed using a custom-trained Azure Form Recognizer model. 
+                                     Key information—including company name, address, task name, area, frequency, 
+                                     and effective dates—is intelligently extracted and structured into a relational database.</p>
     </div>
   </div>
 </template>

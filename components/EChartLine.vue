@@ -6,43 +6,41 @@
 import { ref, watchEffect } from 'vue'
 import { useAsyncData } from '#app'
 import { use } from 'echarts/core'
-import { BarChart } from 'echarts/charts'
-import { TitleComponent, TooltipComponent, GridComponent } from 'echarts/components'
+import { LineChart } from 'echarts/charts'
+import { TitleComponent, TooltipComponent, GridComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 
-use([BarChart, TitleComponent, TooltipComponent, GridComponent, CanvasRenderer])
+use([LineChart, TitleComponent, TooltipComponent, GridComponent, LegendComponent, CanvasRenderer])
 
-const { data: chartData } = await useAsyncData('clientsBySuburb', () =>
-  $fetch('/api/clientsBySuburb')
+const { data: chartData } = await useAsyncData('clientsByMonth', () =>
+  $fetch('/api/clientsByMonth')
 )
 
 const option = ref({
-  title: { text: 'Clients by Suburb' },
-  tooltip: {},
+  title: { text: 'Increase Clients by Month' },
+  tooltip: { trigger: 'axis' },
   grid: { left: 40, right: 20, top: 40, bottom: 40 },
   xAxis: {
     type: 'category',
-    data: [],
-    axisTick: { alignWithLabel: true }
+    data: []
   },
   yAxis: { type: 'value' },
   series: [
     {
+      name: 'Clients',
       data: [],
-      type: 'bar',
-      itemStyle: { color: '#2C2F3A' },
-      barWidth: '50%'
+      type: 'line',
+      smooth: true,
+      itemStyle: { color: '#2C2F3A' }
     }
   ]
 })
 
 watchEffect(() => {
   if (chartData.value) {
-    option.value.xAxis.data = chartData.value.map((item) => item.suburb)
+    option.value.xAxis.data = chartData.value.map((item) => item.month)
     option.value.series[0].data = chartData.value.map((item) => item.count)
   }
 })
 </script>
-
-

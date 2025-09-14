@@ -1,11 +1,13 @@
 import process from 'node:process';globalThis._importMeta_={url:import.meta.url,env:process.env};import { tmpdir } from 'node:os';
-import { defineEventHandler, handleCacheHeaders, splitCookiesString, createEvent, fetchWithEvent, isEvent, eventHandler, setHeaders, sendRedirect, proxyRequest, getRequestHeader, setResponseHeaders, setResponseStatus, send, getRequestHeaders, setResponseHeader, appendResponseHeader, getRequestURL, getResponseHeader, removeResponseHeader, createError, getQuery as getQuery$1, readBody, createApp, createRouter as createRouter$1, toNodeListener, lazyEventHandler, getResponseStatus, getRouterParam, readFormData, getResponseStatusText } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/h3/dist/index.mjs';
+import { defineEventHandler, handleCacheHeaders, splitCookiesString, createEvent, fetchWithEvent, isEvent, eventHandler, setHeaders, sendRedirect, proxyRequest, getRequestHeader, setResponseHeaders, setResponseStatus, send, getRequestHeaders, setResponseHeader, appendResponseHeader, getRequestURL, getResponseHeader, removeResponseHeader, createError, getQuery as getQuery$1, readBody, createApp, createRouter as createRouter$1, toNodeListener, lazyEventHandler, getResponseStatus, getRouterParam, getResponseStatusText } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/h3/dist/index.mjs';
 import { Server } from 'node:http';
 import { resolve, dirname, join } from 'node:path';
-import nodeCrypto from 'node:crypto';
+import nodeCrypto, { createHash } from 'node:crypto';
 import { parentPort, threadId } from 'node:worker_threads';
 import { escapeHtml } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/@vue/shared/dist/shared.cjs.js';
-import { DefaultAzureCredential } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/@azure/identity/dist/esm/index.js';
+import { PrismaClient } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/@prisma/client/default.js';
+import { IncomingForm } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/formidable/src/index.js';
+import fs, { readFile } from 'node:fs/promises';
 import { DocumentAnalysisClient, AzureKeyCredential } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/@azure/ai-form-recognizer/dist/esm/index.js';
 import { createRenderer, getRequestDependencies, getPreloadLinks, getPrefetchLinks } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/vue-bundle-renderer/dist/runtime.mjs';
 import { parseURL, withoutBase, joinURL, getQuery, withQuery, withTrailingSlash, decodePath, withLeadingSlash, withoutTrailingSlash, joinRelativeURL } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/ufo/dist/index.mjs';
@@ -22,7 +24,6 @@ import defu, { defuFn } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_m
 import { snakeCase } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/scule/dist/index.mjs';
 import { getContext } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/unctx/dist/index.mjs';
 import { toRouteMatcher, createRouter } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/radix3/dist/index.mjs';
-import { readFile } from 'node:fs/promises';
 import consola, { consola as consola$1 } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/consola/dist/index.mjs';
 import { ErrorParser } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/youch-core/build/index.js';
 import { Youch } from 'file:///Users/sunbangheng/Desktop/sitemapAI/node_modules/nitropack/node_modules/youch/build/index.js';
@@ -1526,11 +1527,17 @@ async function getIslandContext(event) {
 }
 
 const _lazy_NeXAF_ = () => Promise.resolve().then(function () { return analyze_post$1; });
+const _lazy_QOZdhn = () => Promise.resolve().then(function () { return clients$1; });
+const _lazy_bWjsom = () => Promise.resolve().then(function () { return clientsByMonth$1; });
+const _lazy_ZEzMop = () => Promise.resolve().then(function () { return dashboardStats$1; });
 const _lazy_z5cH3q = () => Promise.resolve().then(function () { return renderer$1; });
 
 const handlers = [
   { route: '', handler: _MpXLvc, lazy: false, middleware: true, method: undefined },
   { route: '/api/analyze', handler: _lazy_NeXAF_, lazy: true, middleware: false, method: "post" },
+  { route: '/api/clients', handler: _lazy_QOZdhn, lazy: true, middleware: false, method: undefined },
+  { route: '/api/clientsByMonth', handler: _lazy_bWjsom, lazy: true, middleware: false, method: undefined },
+  { route: '/api/dashboardStats', handler: _lazy_ZEzMop, lazy: true, middleware: false, method: undefined },
   { route: '/__nuxt_error', handler: _lazy_z5cH3q, lazy: true, middleware: false, method: undefined },
   { route: '/__nuxt_island/**', handler: _SxA8c9, lazy: false, middleware: false, method: undefined },
   { route: '/**', handler: _lazy_z5cH3q, lazy: true, middleware: false, method: undefined }
@@ -1861,70 +1868,209 @@ const styles$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
   default: styles
 }, Symbol.toStringTag, { value: 'Module' }));
 
+async function analyzeDocumentWithCustomModel(buffer) {
+  const endpoint = process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT;
+  const key = process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY;
+  const modelId = process.env.AZURE_DOCUMENT_INTELLIGENCE_MODEL;
+  const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
+  const poller = await client.beginAnalyzeDocument(modelId, buffer);
+  const result = await poller.pollUntilDone();
+  return result;
+}
+
+const prisma$3 = new PrismaClient();
 const analyze_post = defineEventHandler(async (event) => {
-  const endpoint = process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT || process.env.AZURE_DI_ENDPOINT;
-  const key = process.env.AZURE_DOCUMENT_INTELLIGENCE_KEY || process.env.AZURE_DI_KEY;
-  const modelId = process.env.AZURE_DOCUMENT_INTELLIGENCE_MODEL || process.env.AZURE_DI_MODEL_ID || "prebuilt-layout";
-  if (!endpoint || !key || !modelId) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: "Missing Azure env vars"
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t;
+  const form = new IncomingForm();
+  const data = await new Promise((resolve, reject) => {
+    form.parse(event.req, (err, fields2, files) => {
+      if (err) return reject(err);
+      resolve({ file: files.file[0] });
+    });
+  });
+  const file = data.file;
+  const buffer = await fs.readFile(file.filepath);
+  const sha256 = createHash("sha256").update(buffer).digest("hex");
+  const result = await analyzeDocumentWithCustomModel(buffer);
+  const fields = ((_b = (_a = result == null ? void 0 : result.documents) == null ? void 0 : _a[0]) == null ? void 0 : _b.fields) || {};
+  console.log("Extracted field values (summary):", {
+    CompanyName: (_c = fields.CompanyName) == null ? void 0 : _c.content,
+    Address: (_d = fields.Address) == null ? void 0 : _d.content,
+    Area: (_e = fields.Area) == null ? void 0 : _e.content,
+    Tasks: (_f = fields.Tasks) == null ? void 0 : _f.content,
+    Frequency: (_g = fields.Frequency) == null ? void 0 : _g.content,
+    EffectiveFrom: (_h = fields.EffectiveFrom) == null ? void 0 : _h.content
+  });
+  const companyName = (_j = (_i = fields.CompanyName) == null ? void 0 : _i.content) != null ? _j : "Unknown Company";
+  const address = (_l = (_k = fields.Address) == null ? void 0 : _k.content) != null ? _l : "Unknown Address";
+  const siteName = (_n = (_m = fields.Area) == null ? void 0 : _m.content) != null ? _n : "UnKnown Site";
+  const taskName = (_p = (_o = fields.Tasks) == null ? void 0 : _o.content) != null ? _p : "Unknown Task";
+  const frequency = (_s = (_r = (_q = fields.Frequency) == null ? void 0 : _q.content) == null ? void 0 : _r.toUpperCase()) != null ? _s : "Unknown Frequency";
+  const effectiveFromRaw = (_t = fields.EffectiveFrom) == null ? void 0 : _t.content;
+  const validRules = ["WEEKLY", "MONTHLY", "ONE_OFF"];
+  const scheduleRule = validRules.includes(frequency) ? frequency : "ONE_OFF";
+  let effectiveFrom = null;
+  if (effectiveFromRaw) {
+    try {
+      effectiveFrom = new Date(effectiveFromRaw);
+    } catch (err) {
+      console.warn("Date parsing failed:", effectiveFromRaw);
+    }
+  }
+  let fileRecord = await prisma$3.files.findUnique({
+    where: { sha256 }
+  });
+  if (!fileRecord) {
+    fileRecord = await prisma$3.files.create({
+      data: {
+        file_name: file.originalFilename,
+        file_size: file.size,
+        file_type: file.mimetype,
+        sha256
+      }
     });
   }
-  new DefaultAzureCredential();
-  const client = new DocumentAnalysisClient(
-    endpoint,
-    new AzureKeyCredential(key)
-  );
-  const form = await readFormData(event);
-  const file = form.get("file");
-  if (!file || typeof file === "string") {
-    throw createError({ statusCode: 400, statusMessage: "No file uploaded" });
-  }
-  const arrayBuf = await file.arrayBuffer();
-  const body = Buffer.from(arrayBuf);
-  const poller = await client.beginAnalyzeDocument(modelId, body, {
-    onProgress: ({ status }) => {
-      console.log(`status: ${status}`);
+  const company = await prisma$3.company.create({
+    data: {
+      company_name: companyName,
+      company_address: address
     }
   });
-  const { documents, pages, tables } = await poller.pollUntilDone();
-  console.log("Documents:");
-  for (const document of documents || []) {
-    console.log(`Type: ${document.docType}`);
-    console.log("Fields:");
-    for (const [name, field] of Object.entries(document.fields)) {
-      console.log(
-        `Field ${name} has content '${field.content}' with a confidence score of ${field.confidence}`
-      );
+  const site = await prisma$3.sites.create({
+    data: {
+      company_id: company.company_id,
+      site_name: siteName
     }
+  });
+  let task = await prisma$3.tasks.findFirst({
+    where: { task_name: taskName }
+  });
+  if (!task) {
+    task = await prisma$3.tasks.create({
+      data: { task_name: taskName }
+    });
   }
-  console.log("Pages:");
-  for (const page of pages || []) {
-    console.log(
-      `Page number: ${page.pageNumber} (${page.width}x${page.height} ${page.unit})`
-    );
-  }
-  console.log("Tables:");
-  for (const table of tables || []) {
-    console.log(`- Table (${table.columnCount}x${table.rowCount})`);
-    for (const cell of table.cells) {
-      console.log(
-        `  - cell (${cell.rowIndex},${cell.columnIndex}) "${cell.content}"`
-      );
+  const areaTask = await prisma$3.area_tasks.create({
+    data: {
+      site_id: site.site_id,
+      task_id: task.task_id
     }
-  }
+  });
+  const schedule = await prisma$3.schedules.create({
+    data: {
+      area_task_id: areaTask.area_task_id,
+      rule_type: scheduleRule,
+      rrule: null,
+      effective_from: effectiveFrom
+    }
+  });
+  console.log("File upload info:", file);
+  console.log("Company name:", companyName);
+  console.log("Schedule frequency:", scheduleRule);
+  console.log("Insertion result:", {
+    fileId: fileRecord.file_id,
+    siteId: site.site_id,
+    taskId: task.task_id,
+    scheduleId: schedule.schedule_id
+  });
   return {
-    modelId,
-    documents,
-    pages,
-    tables
+    message: "Inserted successfully",
+    fileId: fileRecord.file_id.toString(),
+    siteId: site.site_id.toString(),
+    taskId: task.task_id.toString(),
+    areaTaskId: areaTask.area_task_id.toString(),
+    scheduleId: schedule.schedule_id.toString(),
+    result: {
+      companyName,
+      address,
+      siteName,
+      taskName,
+      scheduleRule,
+      effectiveFrom
+    }
   };
 });
 
 const analyze_post$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
   __proto__: null,
   default: analyze_post
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const prisma$2 = new PrismaClient();
+const clients = defineEventHandler(async () => {
+  try {
+    const companies = await prisma$2.company.findMany({
+      include: {
+        sites: {
+          include: {
+            area_tasks: true
+          }
+        }
+      }
+    });
+    return companies.map((c) => ({
+      id: Number(c.company_id),
+      clientName: c.company_name,
+      address: c.company_address,
+      numLocations: Number(c.sites.length),
+      numTasks: Number(
+        c.sites.reduce((sum, site) => sum + site.area_tasks.length, 0)
+      )
+    }));
+  } catch (err) {
+    console.error("Error loading clients:", err);
+    throw createError({
+      statusCode: 500,
+      statusMessage: "Failed to load clients"
+    });
+  }
+});
+
+const clients$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: clients
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const prisma$1 = new PrismaClient();
+const clientsByMonth = defineEventHandler(async () => {
+  const result = await prisma$1.$queryRaw`
+    SELECT 
+      TO_CHAR(DATE_TRUNC('month', uploaded_at), 'YYYY-MM') AS month,
+      COUNT(DISTINCT file_id) AS count
+    FROM files
+    GROUP BY DATE_TRUNC('month', uploaded_at)
+    ORDER BY month;
+  `;
+  return result.map((r) => ({
+    month: r.month,
+    count: Number(r.count)
+  }));
+});
+
+const clientsByMonth$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: clientsByMonth
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const prisma = new PrismaClient();
+const dashboardStats = defineEventHandler(async () => {
+  const totalClients = await prisma.company.count();
+  const totalSites = await prisma.sites.count();
+  const totalAllocations = await prisma.area_tasks.count();
+  const pending = await prisma.schedules.count({
+    where: { effective_from: null }
+  });
+  return {
+    totalClients: Number(totalClients),
+    totalSites: Number(totalSites),
+    totalAllocations: Number(totalAllocations),
+    pending: Number(pending)
+  };
+});
+
+const dashboardStats$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: dashboardStats
 }, Symbol.toStringTag, { value: 'Module' }));
 
 function renderPayloadResponse(ssrContext) {

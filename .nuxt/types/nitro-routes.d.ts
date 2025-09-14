@@ -6,6 +6,15 @@ declare module "nitropack/types" {
     '/api/analyze': {
       'post': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/analyze.post').default>>>>
     }
+    '/api/clients': {
+      'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/clients').default>>>>
+    }
+    '/api/clientsByMonth': {
+      'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/clientsByMonth').default>>>>
+    }
+    '/api/dashboardStats': {
+      'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/dashboardStats').default>>>>
+    }
     '/__nuxt_error': {
       'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../node_modules/nuxt/dist/core/runtime/nitro/handlers/renderer').default>>>>
     }
