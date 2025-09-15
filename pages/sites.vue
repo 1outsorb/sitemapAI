@@ -13,19 +13,27 @@
 
     <!-- Main Content -->
     <div class="max-w-6xl mx-auto p-8">
-      <div class="flex justify-between items-center mb-6">
+      <div class="flex justify-between items-center mb-6 space-x-4">
         <button
-          @click="openModal"
+          @click="openModal('default')"
           class="bg-[#2C2F3A] text-white px-4 py-2 rounded hover:bg-[#3A3E4D] shadow transition"
         >
-          Upload File
+          Upload File (Default Model)
         </button>
+
+        <button
+          @click="openModal('alt')"
+          class="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400 shadow transition"
+     >
+          Upload File (Alt Model)
+        </button>
+
 
         <input
           v-model="search"
           type="text"
           placeholder="Search..."
-          class="border border-gray-300 rounded px-4 py-2 outline-none focus:ring-2 focus:ring-[#2C2F3A]"
+          class="flex-1 border border-gray-300 rounded px-4 py-2 outline-none focus:ring-2 focus:ring-[#2C2F3A]"
         />
       </div>
 
@@ -58,26 +66,22 @@
               </td>
             </tr>
           </tbody>
-        </table> 
+        </table>
       </div>
 
-            <!-- Result Panel -->
+      <!-- Result Panel -->
       <div v-if="result" class="mt-8 grid grid-cols-1 gap-6">
         <div class="bg-white rounded-xl shadow p-6">
           <div class="font-semibold text-lg mb-3">
-            Azure Analyze Result <span v-if="result.modelId"> (model: {{ result.modelId }})</span>
+            Azure Analyze Result
+            <span v-if="result.modelUsed" class="ml-2 text-sm text-gray-500">
+    (model: {{ result.modelUsed }})
+  </span>
           </div>
 
           <pre class="text-sm text-gray-800 bg-gray-50 rounded p-4 overflow-x-auto">
-{{ pretty(result.raw ?? result) }}
+{{ pretty(result) }}
           </pre>
-
-          <div v-if="result.content" class="mt-4">
-            <div class="text-sm text-gray-500 mb-1">Extracted Content</div>
-            <div class="text-sm text-gray-700 whitespace-pre-wrap">
-              {{ result.content }}
-            </div>
-          </div>
 
           <div v-if="result.areaBasedTaskTable?.length" class="mt-6">
             <div class="text-sm font-semibold mb-2">Extracted Area Based Tasks</div>
@@ -115,6 +119,9 @@
         </div>
       </div>
 
+      <div v-if="errorMsg" class="mt-4 text-red-600">
+        {{ errorMsg }}
+      </div>
     </div>
 
     <!-- Upload Modal -->
@@ -141,7 +148,7 @@
 
           <p class="text-sm text-gray-600 mb-3">
             Please upload a document in
-            <span class="font-medium">PDF, JPEG, PNG, TIFF or BMP format.</span> 
+            <span class="font-medium">PDF, JPEG, PNG, TIFF or BMP format.</span>
             Max size: {{ humanSize(MAX_MB * 1024 * 1024) }}.
           </p>
 
@@ -203,6 +210,7 @@ const uploading = ref(false)
 const errorMsg = ref('')
 const modalError = ref('')
 const result = ref(null)
+const uploadTarget = ref('default')
 
 /** ----- helpers ----- */
 function humanSize (bytes) {
@@ -223,8 +231,9 @@ function pretty (val) {
 }
 
 /** ----- modal control ----- */
-function openModal () {
+function openModal (target = 'default') {
   showModal.value = true
+  uploadTarget.value = target
   errorMsg.value = ''
   modalError.value = ''
   document.documentElement.classList.add('overflow-hidden')
@@ -280,19 +289,22 @@ async function onUpload () {
   try {
     const fd = new FormData()
     fd.append('file', pickedFile.value)
+    fd.append('model', uploadTarget.value) // ⬅️ default / alt
 
     const res = await $fetch('/api/analyze', {
       method: 'POST',
       body: fd
     })
 
-    result.value = res
+    result.value = res.result
+
     closeModal()
   } catch (err) {
     errorMsg.value = (err?.data?.message) || err?.message || 'Upload failed'
     uploading.value = false
   }
 }
+
 
 /** ----- esc to close modal ----- */
 function escClose (e) {

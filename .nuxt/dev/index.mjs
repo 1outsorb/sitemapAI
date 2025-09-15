@@ -1119,22 +1119,7 @@ const plugins = [
 _6lVuWhkF2eJVjqCDKfeT6CfuEkr5roQhDqS8JIdc3JA
 ];
 
-const assets = {
-  "/index.mjs": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"14619-DhJm6p9OfrrSsMOJ4gfX0Sr/oHw\"",
-    "mtime": "2025-09-15T10:38:05.207Z",
-    "size": 83481,
-    "path": "index.mjs"
-  },
-  "/index.mjs.map": {
-    "type": "application/json",
-    "etag": "\"4bbe6-/sYuY9rkz2ToJS5RaJ5UjoCfFT4\"",
-    "mtime": "2025-09-15T10:38:05.208Z",
-    "size": 310246,
-    "path": "index.mjs.map"
-  }
-};
+const assets = {};
 
 function readAsset (id) {
   const serverDir = dirname$1(fileURLToPath(globalThis._importMeta_.url));
@@ -1889,53 +1874,58 @@ async function analyzeDocumentWithCustomModel(buffer) {
   const modelId = process.env.AZURE_DOCUMENT_INTELLIGENCE_MODEL;
   const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
   const poller = await client.beginAnalyzeDocument(modelId, buffer);
-  const result = await poller.pollUntilDone();
-  return result;
+  return await poller.pollUntilDone();
+}
+async function analyzeDocumentWithAltModel(buffer) {
+  const endpoint = process.env.AZURE_DOCUMENT_ALT_ENDPOINT;
+  const key = process.env.AZURE_DOCUMENT_ALT_KEY;
+  const modelId = process.env.AZURE_DOCUMENT_ALT_MODEL;
+  if (!endpoint || !key || !modelId) {
+    throw new Error("[Azure] Alt model config missing. Please set AZURE_DOCUMENT_ALT_ENDPOINT, AZURE_DOCUMENT_ALT_KEY, AZURE_DOCUMENT_ALT_MODEL in .env");
+  }
+  const client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(key));
+  const poller = await client.beginAnalyzeDocument(modelId, buffer);
+  return await poller.pollUntilDone();
 }
 
 const prisma$3 = new PrismaClient();
 const analyze_post = defineEventHandler(async (event) => {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;
   const form = new IncomingForm();
   const data = await new Promise((resolve, reject) => {
     form.parse(event.req, (err, fields2, files) => {
       if (err) return reject(err);
-      resolve({ file: files.file[0] });
+      resolve({ file: files.file[0], fields: fields2 });
     });
   });
   const file = data.file;
   const buffer = await fs.readFile(file.filepath);
   const sha256 = createHash("sha256").update(buffer).digest("hex");
-  const result = await analyzeDocumentWithCustomModel(buffer);
-  const fields = ((_b = (_a = result == null ? void 0 : result.documents) == null ? void 0 : _a[0]) == null ? void 0 : _b.fields) || {};
-  console.log("Extracted field values (summary):", {
-    CompanyName: (_c = fields.company_name) == null ? void 0 : _c.content,
-    Address: (_d = fields.company_address) == null ? void 0 : _d.content,
-    SiteName: (_e = fields.area_task_id) == null ? void 0 : _e.content,
-    Task: (_f = fields.Task) == null ? void 0 : _f.content,
-    Frequency: (_g = fields.Frequency) == null ? void 0 : _g.content,
-    EffectiveFrom: (_h = fields.EffectiveFrom) == null ? void 0 : _h.content,
-    AreaBasedTaskTable: (_i = fields.Area_based_task) == null ? void 0 : _i.valueArray
-  });
-  const companyName = (_k = (_j = fields.company_name) == null ? void 0 : _j.content) != null ? _k : "Unknown Company";
-  const address = (_m = (_l = fields.company_address) == null ? void 0 : _l.content) != null ? _m : "Unknown Address";
-  const siteName = (_o = (_n = fields.area_task_id) == null ? void 0 : _n.content) != null ? _o : "Unknown Site";
-  const taskName = (_q = (_p = fields.Task) == null ? void 0 : _p.content) != null ? _q : "Unknown Task";
-  const frequency = (_t = (_s = (_r = fields.Frequency) == null ? void 0 : _r.content) == null ? void 0 : _s.toUpperCase()) != null ? _t : "Unknown Frequency";
-  const effectiveFromRaw = (_u = fields.EffectiveFrom) == null ? void 0 : _u.content;
+  const modelField = (_a = data.fields) == null ? void 0 : _a.model;
+  const modelValue = Array.isArray(modelField) ? modelField[0] : modelField;
+  const useAltModel = modelValue === "alt";
+  console.log("Raw fields from form:", data.fields);
+  console.log("Normalized model param:", modelValue);
+  const resultAzure = useAltModel ? await analyzeDocumentWithAltModel(buffer) : await analyzeDocumentWithCustomModel(buffer);
+  const modelUsed = useAltModel ? "alt" : "default";
+  const fields = ((_c = (_b = resultAzure == null ? void 0 : resultAzure.documents) == null ? void 0 : _b[0]) == null ? void 0 : _c.fields) || {};
+  const companyName = (_e = (_d = fields.company_name) == null ? void 0 : _d.content) != null ? _e : "Unknown Company";
+  const address = (_g = (_f = fields.company_address) == null ? void 0 : _f.content) != null ? _g : "Unknown Address";
+  const siteName = (_i = (_h = fields.area_task_id) == null ? void 0 : _h.content) != null ? _i : "Unknown Site";
+  const taskName = (_k = (_j = fields.Task) == null ? void 0 : _j.content) != null ? _k : "Unknown Task";
+  const frequency = (_n = (_m = (_l = fields.Frequency) == null ? void 0 : _l.content) == null ? void 0 : _m.toUpperCase()) != null ? _n : "Unknown Frequency";
+  const effectiveFromRaw = (_o = fields.EffectiveFrom) == null ? void 0 : _o.content;
   const validRules = ["WEEKLY", "MONTHLY", "ONE_OFF"];
   const scheduleRule = validRules.includes(frequency) ? frequency : "ONE_OFF";
   let effectiveFrom = null;
   if (effectiveFromRaw) {
     try {
       effectiveFrom = new Date(effectiveFromRaw);
-    } catch (err) {
+    } catch {
       console.warn("Date parsing failed:", effectiveFromRaw);
     }
   }
-  let fileRecord = await prisma$3.files.findUnique({
-    where: { sha256 }
-  });
+  let fileRecord = await prisma$3.files.findUnique({ where: { sha256 } });
   if (!fileRecord) {
     fileRecord = await prisma$3.files.create({
       data: {
@@ -1947,40 +1937,22 @@ const analyze_post = defineEventHandler(async (event) => {
     });
   }
   const company = await prisma$3.company.create({
-    data: {
-      company_name: companyName,
-      company_address: address
-    }
+    data: { company_name: companyName, company_address: address }
   });
   const site = await prisma$3.sites.create({
-    data: {
-      company_id: company.company_id,
-      site_name: siteName
-    }
+    data: { company_id: company.company_id, site_name: siteName }
   });
-  let task = await prisma$3.tasks.findFirst({
-    where: { task_name: taskName }
-  });
+  let task = await prisma$3.tasks.findFirst({ where: { task_name: taskName } });
   if (!task) {
-    task = await prisma$3.tasks.create({
-      data: { task_name: taskName }
-    });
+    task = await prisma$3.tasks.create({ data: { task_name: taskName } });
   }
   const areaTask = await prisma$3.area_tasks.create({
-    data: {
-      site_id: site.site_id,
-      task_id: task.task_id
-    }
+    data: { site_id: site.site_id, task_id: task.task_id }
   });
   const schedule = await prisma$3.schedules.create({
-    data: {
-      area_task_id: areaTask.area_task_id,
-      rule_type: scheduleRule,
-      rrule: null,
-      effective_from: effectiveFrom
-    }
+    data: { area_task_id: areaTask.area_task_id, rule_type: scheduleRule, effective_from: effectiveFrom }
   });
-  const rawTable = (_w = (_v = fields.Area_based_task) == null ? void 0 : _v.values) != null ? _w : [];
+  const rawTable = (_q = (_p = fields.Area_based_task) == null ? void 0 : _p.values) != null ? _q : [];
   const areaBasedTaskTable = rawTable.map((row) => {
     var _a2;
     const props = row.properties || {};
@@ -1990,24 +1962,16 @@ const analyze_post = defineEventHandler(async (event) => {
     }
     return rowObj;
   });
-  console.log("Standardized Area_based_task table:", areaBasedTaskTable);
-  console.log("File upload info:", file);
-  console.log("Company name:", companyName);
-  console.log("Schedule frequency:", scheduleRule);
-  console.log("Insertion result:", {
-    fileId: fileRecord.file_id,
-    siteId: site.site_id,
-    taskId: task.task_id,
-    scheduleId: schedule.schedule_id
-  });
   return {
-    message: "Inserted successfully",
-    fileId: fileRecord.file_id.toString(),
-    siteId: site.site_id.toString(),
-    taskId: task.task_id.toString(),
-    areaTaskId: areaTask.area_task_id.toString(),
-    scheduleId: schedule.schedule_id.toString(),
     result: {
+      message: "Inserted successfully",
+      modelUsed,
+      // ✅ 前端可以看到调用了哪个模型
+      fileId: fileRecord.file_id.toString(),
+      siteId: site.site_id.toString(),
+      taskId: task.task_id.toString(),
+      areaTaskId: areaTask.area_task_id.toString(),
+      scheduleId: schedule.schedule_id.toString(),
       companyName,
       address,
       siteName,
