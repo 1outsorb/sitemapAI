@@ -61,7 +61,7 @@
         </table> 
       </div>
 
-      <!-- Result Panel -->
+            <!-- Result Panel -->
       <div v-if="result" class="mt-8 grid grid-cols-1 gap-6">
         <div class="bg-white rounded-xl shadow p-6">
           <div class="font-semibold text-lg mb-3">
@@ -78,12 +78,43 @@
               {{ result.content }}
             </div>
           </div>
+
+          <div v-if="result.areaBasedTaskTable?.length" class="mt-6">
+            <div class="text-sm font-semibold mb-2">Extracted Area Based Tasks</div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200 border">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th
+                      v-for="(val, col) in result.areaBasedTaskTable[0]"
+                      :key="col"
+                      class="px-4 py-2 text-left font-semibold text-gray-700"
+                    >
+                      {{ col }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(row, idx) in result.areaBasedTaskTable"
+                    :key="idx"
+                    class="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
+                  >
+                    <td
+                      v-for="(val, col) in row"
+                      :key="col"
+                      class="px-4 py-2 whitespace-pre-wrap"
+                    >
+                      {{ val }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div v-if="errorMsg" class="mt-4 text-red-600">
-        {{ errorMsg }}
-      </div>
     </div>
 
     <!-- Upload Modal -->

@@ -26,22 +26,27 @@ export default defineEventHandler(async (event) => {
   // Call Azure document analysis
   const result = await analyzeDocumentWithCustomModel(buffer)
 
+
+  //console.log('Full Azure result:', JSON.stringify(result, null, 2))
+
+
   // Extract fields from Azure result
   const fields = result?.documents?.[0]?.fields || {}
 
   console.log('Extracted field values (summary):', {
-    CompanyName: fields.CompanyName?.content,
-    Address: fields.Address?.content,
-    Area: fields.Area?.content,
-    Tasks: fields.Tasks?.content,
+    CompanyName: fields.company_name?.content,
+    Address: fields.company_address?.content,
+    SiteName: fields.area_task_id?.content,
+    Task: fields.Task?.content,
     Frequency: fields.Frequency?.content,
     EffectiveFrom: fields.EffectiveFrom?.content,
+    AreaBasedTaskTable: fields.Area_based_task?.valueArray,
   })
 
-  const companyName = fields.CompanyName?.content ?? 'Unknown Company'
-  const address = fields.Address?.content ?? 'Unknown Address'
-  const siteName = fields.Area?.content ?? 'UnKnown Site'
-  const taskName = fields.Tasks?.content ?? 'Unknown Task'
+  const companyName = fields.company_name?.content ?? 'Unknown Company'
+  const address = fields.company_address?.content ?? 'Unknown Address'
+  const siteName = fields.area_task_id?.content ?? 'Unknown Site'
+  const taskName = fields.Task?.content ?? 'Unknown Task'
   const frequency = fields.Frequency?.content?.toUpperCase() ?? 'Unknown Frequency'
   const effectiveFromRaw = fields.EffectiveFrom?.content
 
@@ -73,14 +78,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Insert or find company
- const company = await prisma.company.create({
-  data: {
-    company_name: companyName,
-    company_address: address,
-  },
-})
-
+  // Always insert a new company 
+  const company = await prisma.company.create({
+    data: {
+      company_name: companyName,
+      company_address: address,
+    },
+  })
 
   // Insert site
   const site = await prisma.sites.create({
@@ -119,6 +123,20 @@ export default defineEventHandler(async (event) => {
     }
   })
 
+  // Extract Area_based_task table
+  const rawTable = fields.Area_based_task?.values ?? []
+  const areaBasedTaskTable = rawTable.map((row: any) => {
+    const props = row.properties || {}
+    const rowObj: Record<string, string> = {}
+    for (const [col, cell] of Object.entries(props)) {
+      rowObj[col] = cell?.value ?? ''
+    }
+    return rowObj
+  })
+
+  console.log('Standardized Area_based_task table:', areaBasedTaskTable)
+
+
   // Debug output after successful insertion
   console.log('File upload info:', file)
   console.log('Company name:', companyName)
@@ -144,8 +162,7 @@ export default defineEventHandler(async (event) => {
       taskName,
       scheduleRule,
       effectiveFrom,
+      areaBasedTaskTable, 
     }
   }
 })
-
-

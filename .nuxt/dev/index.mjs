@@ -1119,7 +1119,22 @@ const plugins = [
 _6lVuWhkF2eJVjqCDKfeT6CfuEkr5roQhDqS8JIdc3JA
 ];
 
-const assets = {};
+const assets = {
+  "/index.mjs": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"14619-DhJm6p9OfrrSsMOJ4gfX0Sr/oHw\"",
+    "mtime": "2025-09-15T10:38:05.207Z",
+    "size": 83481,
+    "path": "index.mjs"
+  },
+  "/index.mjs.map": {
+    "type": "application/json",
+    "etag": "\"4bbe6-/sYuY9rkz2ToJS5RaJ5UjoCfFT4\"",
+    "mtime": "2025-09-15T10:38:05.208Z",
+    "size": 310246,
+    "path": "index.mjs.map"
+  }
+};
 
 function readAsset (id) {
   const serverDir = dirname$1(fileURLToPath(globalThis._importMeta_.url));
@@ -1880,7 +1895,7 @@ async function analyzeDocumentWithCustomModel(buffer) {
 
 const prisma$3 = new PrismaClient();
 const analyze_post = defineEventHandler(async (event) => {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w;
   const form = new IncomingForm();
   const data = await new Promise((resolve, reject) => {
     form.parse(event.req, (err, fields2, files) => {
@@ -1894,19 +1909,20 @@ const analyze_post = defineEventHandler(async (event) => {
   const result = await analyzeDocumentWithCustomModel(buffer);
   const fields = ((_b = (_a = result == null ? void 0 : result.documents) == null ? void 0 : _a[0]) == null ? void 0 : _b.fields) || {};
   console.log("Extracted field values (summary):", {
-    CompanyName: (_c = fields.CompanyName) == null ? void 0 : _c.content,
-    Address: (_d = fields.Address) == null ? void 0 : _d.content,
-    Area: (_e = fields.Area) == null ? void 0 : _e.content,
-    Tasks: (_f = fields.Tasks) == null ? void 0 : _f.content,
+    CompanyName: (_c = fields.company_name) == null ? void 0 : _c.content,
+    Address: (_d = fields.company_address) == null ? void 0 : _d.content,
+    SiteName: (_e = fields.area_task_id) == null ? void 0 : _e.content,
+    Task: (_f = fields.Task) == null ? void 0 : _f.content,
     Frequency: (_g = fields.Frequency) == null ? void 0 : _g.content,
-    EffectiveFrom: (_h = fields.EffectiveFrom) == null ? void 0 : _h.content
+    EffectiveFrom: (_h = fields.EffectiveFrom) == null ? void 0 : _h.content,
+    AreaBasedTaskTable: (_i = fields.Area_based_task) == null ? void 0 : _i.valueArray
   });
-  const companyName = (_j = (_i = fields.CompanyName) == null ? void 0 : _i.content) != null ? _j : "Unknown Company";
-  const address = (_l = (_k = fields.Address) == null ? void 0 : _k.content) != null ? _l : "Unknown Address";
-  const siteName = (_n = (_m = fields.Area) == null ? void 0 : _m.content) != null ? _n : "UnKnown Site";
-  const taskName = (_p = (_o = fields.Tasks) == null ? void 0 : _o.content) != null ? _p : "Unknown Task";
-  const frequency = (_s = (_r = (_q = fields.Frequency) == null ? void 0 : _q.content) == null ? void 0 : _r.toUpperCase()) != null ? _s : "Unknown Frequency";
-  const effectiveFromRaw = (_t = fields.EffectiveFrom) == null ? void 0 : _t.content;
+  const companyName = (_k = (_j = fields.company_name) == null ? void 0 : _j.content) != null ? _k : "Unknown Company";
+  const address = (_m = (_l = fields.company_address) == null ? void 0 : _l.content) != null ? _m : "Unknown Address";
+  const siteName = (_o = (_n = fields.area_task_id) == null ? void 0 : _n.content) != null ? _o : "Unknown Site";
+  const taskName = (_q = (_p = fields.Task) == null ? void 0 : _p.content) != null ? _q : "Unknown Task";
+  const frequency = (_t = (_s = (_r = fields.Frequency) == null ? void 0 : _r.content) == null ? void 0 : _s.toUpperCase()) != null ? _t : "Unknown Frequency";
+  const effectiveFromRaw = (_u = fields.EffectiveFrom) == null ? void 0 : _u.content;
   const validRules = ["WEEKLY", "MONTHLY", "ONE_OFF"];
   const scheduleRule = validRules.includes(frequency) ? frequency : "ONE_OFF";
   let effectiveFrom = null;
@@ -1964,6 +1980,17 @@ const analyze_post = defineEventHandler(async (event) => {
       effective_from: effectiveFrom
     }
   });
+  const rawTable = (_w = (_v = fields.Area_based_task) == null ? void 0 : _v.values) != null ? _w : [];
+  const areaBasedTaskTable = rawTable.map((row) => {
+    var _a2;
+    const props = row.properties || {};
+    const rowObj = {};
+    for (const [col, cell] of Object.entries(props)) {
+      rowObj[col] = (_a2 = cell == null ? void 0 : cell.value) != null ? _a2 : "";
+    }
+    return rowObj;
+  });
+  console.log("Standardized Area_based_task table:", areaBasedTaskTable);
   console.log("File upload info:", file);
   console.log("Company name:", companyName);
   console.log("Schedule frequency:", scheduleRule);
@@ -1986,7 +2013,8 @@ const analyze_post = defineEventHandler(async (event) => {
       siteName,
       taskName,
       scheduleRule,
-      effectiveFrom
+      effectiveFrom,
+      areaBasedTaskTable
     }
   };
 });
