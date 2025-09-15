@@ -289,7 +289,7 @@ async function onUpload () {
   try {
     const fd = new FormData()
     fd.append('file', pickedFile.value)
-    fd.append('model', uploadTarget.value) // ⬅️ default / alt
+    fd.append('model', uploadTarget.value) 
 
     const res = await $fetch('/api/analyze', {
       method: 'POST',

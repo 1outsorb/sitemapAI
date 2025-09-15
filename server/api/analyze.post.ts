@@ -23,7 +23,6 @@ export default defineEventHandler(async (event) => {
   // Calculate SHA-256 hash
   const sha256 = createHash('sha256').update(buffer).digest('hex')
 
-  // ---- 修复点：兼容 formidable 的数组输出 ----
   const modelField = data.fields?.model
   const modelValue = Array.isArray(modelField) ? modelField[0] : modelField
   const useAltModel = modelValue === 'alt'
@@ -31,7 +30,6 @@ export default defineEventHandler(async (event) => {
   console.log("Raw fields from form:", data.fields)
   console.log("Normalized model param:", modelValue)
 
-  // ---- 调用对应模型 ----
   const resultAzure = useAltModel
     ? await analyzeDocumentWithAltModel(buffer)
     : await analyzeDocumentWithCustomModel(buffer)
@@ -110,11 +108,10 @@ export default defineEventHandler(async (event) => {
     return rowObj
   })
 
-  // 返回结果
   return {
     result: {
       message: 'Inserted successfully',
-      modelUsed, // ✅ 前端可以看到调用了哪个模型
+      modelUsed, 
       fileId: fileRecord.file_id.toString(),
       siteId: site.site_id.toString(),
       taskId: task.task_id.toString(),
