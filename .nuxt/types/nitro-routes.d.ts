@@ -15,6 +15,9 @@ declare module "nitropack/types" {
     '/api/dashboardStats': {
       'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/dashboardStats').default>>>>
     }
+    '/api/extract/by-company/:id': {
+      'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/extract/by-company/[id]').default>>>>
+    }
     '/api/extract/latest': {
       'get': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/extract/latest.get').default>>>>
     }

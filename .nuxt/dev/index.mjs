@@ -1119,22 +1119,7 @@ const plugins = [
 _6lVuWhkF2eJVjqCDKfeT6CfuEkr5roQhDqS8JIdc3JA
 ];
 
-const assets = {
-  "/index.mjs": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"1534a-bRizK3Mx5X2BQh6wK4sUhTcudps\"",
-    "mtime": "2025-09-16T10:13:19.608Z",
-    "size": 86858,
-    "path": "index.mjs"
-  },
-  "/index.mjs.map": {
-    "type": "application/json",
-    "etag": "\"4dfe3-fMU2oggmucl17H0XqF88e6SXZOk\"",
-    "mtime": "2025-09-16T10:13:19.608Z",
-    "size": 319459,
-    "path": "index.mjs.map"
-  }
-};
+const assets = {};
 
 function readAsset (id) {
   const serverDir = dirname$1(fileURLToPath(globalThis._importMeta_.url));
@@ -1545,6 +1530,7 @@ const _lazy_NeXAF_ = () => Promise.resolve().then(function () { return analyze_p
 const _lazy_QOZdhn = () => Promise.resolve().then(function () { return clients$1; });
 const _lazy_bWjsom = () => Promise.resolve().then(function () { return clientsByMonth$1; });
 const _lazy_ZEzMop = () => Promise.resolve().then(function () { return dashboardStats$1; });
+const _lazy_EviOaR = () => Promise.resolve().then(function () { return _id_$1; });
 const _lazy_fTUl4M = () => Promise.resolve().then(function () { return latest_get$1; });
 const _lazy_tzrfPB = () => Promise.resolve().then(function () { return extracts_get$1; });
 const _lazy_z5cH3q = () => Promise.resolve().then(function () { return renderer$1; });
@@ -1555,6 +1541,7 @@ const handlers = [
   { route: '/api/clients', handler: _lazy_QOZdhn, lazy: true, middleware: false, method: undefined },
   { route: '/api/clientsByMonth', handler: _lazy_bWjsom, lazy: true, middleware: false, method: undefined },
   { route: '/api/dashboardStats', handler: _lazy_ZEzMop, lazy: true, middleware: false, method: undefined },
+  { route: '/api/extract/by-company/:id', handler: _lazy_EviOaR, lazy: true, middleware: false, method: undefined },
   { route: '/api/extract/latest', handler: _lazy_fTUl4M, lazy: true, middleware: false, method: "get" },
   { route: '/api/extracts', handler: _lazy_tzrfPB, lazy: true, middleware: false, method: "get" },
   { route: '/__nuxt_error', handler: _lazy_z5cH3q, lazy: true, middleware: false, method: undefined },
@@ -1907,7 +1894,7 @@ async function analyzeDocumentWithAltModel(buffer) {
   return await poller.pollUntilDone();
 }
 
-const prisma$5 = new PrismaClient();
+const prisma$6 = new PrismaClient();
 const analyze_post = defineEventHandler(async (event) => {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;
   const form = new IncomingForm();
@@ -1942,9 +1929,9 @@ const analyze_post = defineEventHandler(async (event) => {
       console.warn("Date parsing failed:", effectiveFromRaw);
     }
   }
-  let fileRecord = await prisma$5.files.findUnique({ where: { sha256 } });
+  let fileRecord = await prisma$6.files.findUnique({ where: { sha256 } });
   if (!fileRecord) {
-    fileRecord = await prisma$5.files.create({
+    fileRecord = await prisma$6.files.create({
       data: {
         file_name: file.originalFilename,
         file_size: file.size,
@@ -1953,20 +1940,20 @@ const analyze_post = defineEventHandler(async (event) => {
       }
     });
   }
-  const company = await prisma$5.company.create({
+  const company = await prisma$6.company.create({
     data: { company_name: companyName, company_address: address }
   });
-  const site = await prisma$5.sites.create({
+  const site = await prisma$6.sites.create({
     data: { company_id: company.company_id, site_name: siteName }
   });
-  let task = await prisma$5.tasks.findFirst({ where: { task_name: taskName } });
+  let task = await prisma$6.tasks.findFirst({ where: { task_name: taskName } });
   if (!task) {
-    task = await prisma$5.tasks.create({ data: { task_name: taskName } });
+    task = await prisma$6.tasks.create({ data: { task_name: taskName } });
   }
-  const areaTask = await prisma$5.area_tasks.create({
+  const areaTask = await prisma$6.area_tasks.create({
     data: { site_id: site.site_id, task_id: task.task_id }
   });
-  const schedule = await prisma$5.schedules.create({
+  const schedule = await prisma$6.schedules.create({
     data: { area_task_id: areaTask.area_task_id, rule_type: scheduleRule, effective_from: effectiveFrom }
   });
   const rawTable = (_q = (_p = fields.Area_based_task) == null ? void 0 : _p.values) != null ? _q : [];
@@ -1995,7 +1982,7 @@ const analyze_post = defineEventHandler(async (event) => {
     effectiveFrom,
     areaBasedTaskTable
   };
-  const extractContent = await prisma$5.extract_content.create({
+  const extractContent = await prisma$6.extract_content.create({
     data: {
       file_id: fileRecord.file_id,
       raw_content: simplifiedResult
@@ -2014,10 +2001,10 @@ const analyze_post$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProp
   default: analyze_post
 }, Symbol.toStringTag, { value: 'Module' }));
 
-const prisma$4 = new PrismaClient();
+const prisma$5 = new PrismaClient();
 const clients = defineEventHandler(async () => {
   try {
-    const companies = await prisma$4.company.findMany({
+    const companies = await prisma$5.company.findMany({
       include: {
         sites: {
           include: {
@@ -2049,9 +2036,9 @@ const clients$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty(
   default: clients
 }, Symbol.toStringTag, { value: 'Module' }));
 
-const prisma$3 = new PrismaClient();
+const prisma$4 = new PrismaClient();
 const clientsByMonth = defineEventHandler(async () => {
-  const result = await prisma$3.$queryRaw`
+  const result = await prisma$4.$queryRaw`
     SELECT 
       TO_CHAR(DATE_TRUNC('month', uploaded_at), 'YYYY-MM') AS month,
       COUNT(DISTINCT file_id) AS count
@@ -2070,12 +2057,12 @@ const clientsByMonth$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.definePr
   default: clientsByMonth
 }, Symbol.toStringTag, { value: 'Module' }));
 
-const prisma$2 = new PrismaClient();
+const prisma$3 = new PrismaClient();
 const dashboardStats = defineEventHandler(async () => {
-  const totalClients = await prisma$2.company.count();
-  const totalSites = await prisma$2.sites.count();
-  const totalAllocations = await prisma$2.area_tasks.count();
-  const pending = await prisma$2.schedules.count({
+  const totalClients = await prisma$3.company.count();
+  const totalSites = await prisma$3.sites.count();
+  const totalAllocations = await prisma$3.area_tasks.count();
+  const pending = await prisma$3.schedules.count({
     where: { effective_from: null }
   });
   return {
@@ -2089,6 +2076,44 @@ const dashboardStats = defineEventHandler(async () => {
 const dashboardStats$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
   __proto__: null,
   default: dashboardStats
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const prisma$2 = new PrismaClient();
+const _id_ = defineEventHandler(async (event) => {
+  var _a;
+  const idParam = (_a = event.context.params) == null ? void 0 : _a.id;
+  const companyIdNum = Number(idParam);
+  if (!companyIdNum || Number.isNaN(companyIdNum)) {
+    throw createError({ statusCode: 400, statusMessage: "Invalid company id" });
+  }
+  const companyIdBig = BigInt(companyIdNum);
+  const sites = await prisma$2.sites.findMany({
+    where: { company_id: companyIdBig },
+    select: { site_id: true }
+  });
+  if (sites.length === 0) {
+    throw createError({ statusCode: 404, statusMessage: "No sites found for this company" });
+  }
+  const siteIdSet = new Set(sites.map((s) => s.site_id.toString()));
+  const extracts = await prisma$2.extract_content.findMany({
+    orderBy: { created_at: "desc" },
+    take: 200
+  });
+  const matched = extracts.find((e) => {
+    const rc = e.raw_content;
+    if (!rc) return false;
+    const siteIdInJson = rc.siteId != null ? String(rc.siteId) : "";
+    return siteIdSet.has(siteIdInJson);
+  });
+  if (!matched) {
+    throw createError({ statusCode: 404, statusMessage: "No extract content found for this company" });
+  }
+  return matched.raw_content;
+});
+
+const _id_$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: _id_
 }, Symbol.toStringTag, { value: 'Module' }));
 
 const prisma$1 = new PrismaClient();

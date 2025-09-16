@@ -59,8 +59,11 @@
               <td class="px-6 py-4 whitespace-nowrap">{{ item.numLocations }}</td>
               <td class="px-6 py-4 whitespace-nowrap">{{ item.numTasks }}</td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <button class="text-[#2C2F3A] bg-gray-200 rounded px-3 py-1 hover:bg-gray-300 transition">
-                  Edit
+                <button
+                  @click="viewResult(item.id)"
+                  class="text-[#2C2F3A] bg-gray-200 rounded px-3 py-1 hover:bg-gray-300 transition"
+                >
+                  View
                 </button>
               </td>
             </tr>
@@ -79,7 +82,7 @@
           </div>
 
           <pre class="text-sm text-gray-800 bg-gray-50 rounded p-4 overflow-x-auto">
-{{ pretty(result.raw_content || result) }}
+{{ pretty(result) }}
           </pre>
 
           <div v-if="result.areaBasedTaskTable?.length" class="mt-6">
@@ -131,10 +134,7 @@
         aria-modal="true" role="dialog"
         @keydown.esc="closeModal"
       >
-        <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/40" @click="closeModal"></div>
-
-        <!-- Dialog -->
         <div class="relative z-10 w-[92%] max-w-lg rounded-xl bg-white p-6 shadow-xl">
           <div class="flex items-start justify-between mb-4">
             <h3 class="text-xl font-semibold text-[#1F2025]">Upload file</h3>
@@ -170,19 +170,10 @@
           </p>
 
           <div class="mt-6 flex justify-end space-x-3">
-            <button
-              @click="closeModal"
-              class="rounded border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-100"
-              :disabled="uploading"
-            >
+            <button @click="closeModal" class="rounded border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-100" :disabled="uploading">
               Cancel
             </button>
-
-            <button
-              @click="onUpload"
-              class="rounded bg-[#2C2F3A] px-4 py-2 text-white hover:bg-[#3A3E4D] disabled:opacity-60"
-              :disabled="!pickedFile || uploading"
-            >
+            <button @click="onUpload" class="rounded bg-[#2C2F3A] px-4 py-2 text-white hover:bg-[#3A3E4D] disabled:opacity-60" :disabled="!pickedFile || uploading">
               <span v-if="!uploading">Upload</span>
               <span v-else>Uploading…</span>
             </button>
@@ -196,32 +187,25 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
-const ACCEPT =
-  '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const ACCEPT = '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 const MAX_MB = 20 
 
 const search = ref('')
 const showModal = ref(false)
-
-const pickedFile = ref/** @type {File|null} */(null)
+const pickedFile = ref(null)
 const uploading = ref(false)
-
 const errorMsg = ref('')
 const modalError = ref('')
 const result = ref(null)
 const uploadTarget = ref('default')
 
-/** ----- helpers ----- */
 function humanSize (bytes) {
   if (!bytes && bytes !== 0) return ''
   const thresh = 1024
   if (Math.abs(bytes) < thresh) return `${bytes} B`
   const units = ['KB', 'MB', 'GB', 'TB']
   let u = -1
-  do {
-    bytes /= thresh
-    ++u
-  } while (Math.abs(bytes) >= thresh && u < units.length - 1)
+  do { bytes /= thresh; ++u } while (Math.abs(bytes) >= thresh && u < units.length - 1)
   return `${bytes.toFixed(1)} ${units[u]}`
 }
 
@@ -229,7 +213,6 @@ function pretty (val) {
   try { return JSON.stringify(val, null, 2) } catch { return String(val) }
 }
 
-/** ----- modal control ----- */
 function openModal (target = 'default') {
   showModal.value = true
   uploadTarget.value = target
@@ -244,102 +227,53 @@ function closeModal () {
   modalError.value = ''
   pickedFile.value = null
 }
-
-/** ----- pick & validate ----- */
 function onPick (e) {
   modalError.value = ''
-  const input = e.target
-  const f = input && input.files ? input.files[0] : null
-  if (!f) {
-    pickedFile.value = null
-    return
-  }
-
-  const okType =
-    f.type === 'application/pdf' ||
-    f.type === 'image/jpeg' ||
-    f.type === 'image/png' ||
-    f.type === 'image/tiff' ||
-    f.type === 'image/bmp' ||
-    /\.(pdf|jpeg|jpg|png|tif|tiff|bmp)$/i.test(f.name)
-
-  if (!okType) {
-    modalError.value = 'Only PDF/DOC/DOCX files are allowed.'
-    pickedFile.value = null
-    return
-  }
-
-  const maxBytes = MAX_MB * 1024 * 1024
-  if (f.size > maxBytes) {
-    modalError.value = `File is too large. Max allowed: ${humanSize(maxBytes)}.`
-    pickedFile.value = null
-    return
-  }
-
+  const f = e.target?.files?.[0]
+  if (!f) { pickedFile.value = null; return }
+  const okType = ['application/pdf','image/jpeg','image/png','image/tiff','image/bmp'].includes(f.type) || /\.(pdf|jpeg|jpg|png|tif|tiff|bmp)$/i.test(f.name)
+  if (!okType) { modalError.value = 'Only PDF/DOC/DOCX files are allowed.'; pickedFile.value = null; return }
+  if (f.size > MAX_MB * 1024 * 1024) { modalError.value = `File too large.`; pickedFile.value = null; return }
   pickedFile.value = f
 }
-
-/** ----- upload ----- */
 async function onUpload () {
   if (!pickedFile.value) return
-  modalError.value = ''
-  uploading.value = true
-
+  modalError.value = ''; uploading.value = true
   try {
     const fd = new FormData()
     fd.append('file', pickedFile.value)
-    fd.append('model', uploadTarget.value) 
-
-    const res = await $fetch('/api/analyze', {
-      method: 'POST',
-      body: fd
-    })
-
+    fd.append('model', uploadTarget.value)
+    const res = await $fetch('/api/analyze', { method: 'POST', body: fd })
     result.value = res.result
     closeModal()
   } catch (err) {
-    errorMsg.value = (err?.data?.message) || err?.message || 'Upload failed'
+    errorMsg.value = err?.data?.message || err?.message || 'Upload failed'
     uploading.value = false
   }
 }
-
-/** ----- esc to close modal ----- */
-function escClose (e) {
-  if (e.key === 'Escape' && showModal.value && !uploading.value) closeModal()
-}
+function escClose (e) { if (e.key === 'Escape' && showModal.value && !uploading.value) closeModal() }
 onMounted(() => window.addEventListener('keydown', escClose))
 onBeforeUnmount(() => window.removeEventListener('keydown', escClose))
 
-/** ----- table data from API ----- */
 const rows = ref([])
-
 onMounted(async () => {
-  try {
-    rows.value = await $fetch('/api/clients')
-  } catch (err) {
-    errorMsg.value = err?.message || 'Failed to load clients'
-  }
-
-  try {
-    const latestExtract = await $fetch('/api/extract/latest')
-    if (latestExtract) {
-      result.value = latestExtract
-    }
-  } catch (err) {
-    console.warn('No extract_content found yet')
-  }
+  try { rows.value = await $fetch('/api/clients') } 
+  catch (err) { errorMsg.value = err?.message || 'Failed to load clients' }
 })
 
 const filteredRows = computed(() => {
   if (!search.value) return rows.value
   const q = search.value.toLowerCase()
-  return rows.value.filter(item =>
-    Object.values(item).some(v => String(v).toLowerCase().includes(q))
-  )
+  return rows.value.filter(item => Object.values(item).some(v => String(v).toLowerCase().includes(q)))
 })
-</script>
 
-<style>
-.fade-enter-active, .fade-leave-active { transition: opacity .15s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-</style>
+// View company results
+async function viewResult(companyId) {
+  try {
+    const res = await $fetch(`/api/extract/by-company/${companyId}`)
+    result.value = res
+  } catch (err) {
+    errorMsg.value = err?.message || 'Failed to load extract content'
+  }
+}
+</script>
