@@ -15,6 +15,12 @@ declare module "nitropack/types" {
     '/api/dashboardStats': {
       'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/dashboardStats').default>>>>
     }
+    '/api/extract/latest': {
+      'get': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/extract/latest.get').default>>>>
+    }
+    '/api/extracts': {
+      'get': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/extracts.get').default>>>>
+    }
     '/__nuxt_error': {
       'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../node_modules/nuxt/dist/core/runtime/nitro/handlers/renderer').default>>>>
     }

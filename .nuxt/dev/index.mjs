@@ -1119,7 +1119,22 @@ const plugins = [
 _6lVuWhkF2eJVjqCDKfeT6CfuEkr5roQhDqS8JIdc3JA
 ];
 
-const assets = {};
+const assets = {
+  "/index.mjs": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"1534a-bRizK3Mx5X2BQh6wK4sUhTcudps\"",
+    "mtime": "2025-09-16T10:13:19.608Z",
+    "size": 86858,
+    "path": "index.mjs"
+  },
+  "/index.mjs.map": {
+    "type": "application/json",
+    "etag": "\"4dfe3-fMU2oggmucl17H0XqF88e6SXZOk\"",
+    "mtime": "2025-09-16T10:13:19.608Z",
+    "size": 319459,
+    "path": "index.mjs.map"
+  }
+};
 
 function readAsset (id) {
   const serverDir = dirname$1(fileURLToPath(globalThis._importMeta_.url));
@@ -1530,6 +1545,8 @@ const _lazy_NeXAF_ = () => Promise.resolve().then(function () { return analyze_p
 const _lazy_QOZdhn = () => Promise.resolve().then(function () { return clients$1; });
 const _lazy_bWjsom = () => Promise.resolve().then(function () { return clientsByMonth$1; });
 const _lazy_ZEzMop = () => Promise.resolve().then(function () { return dashboardStats$1; });
+const _lazy_fTUl4M = () => Promise.resolve().then(function () { return latest_get$1; });
+const _lazy_tzrfPB = () => Promise.resolve().then(function () { return extracts_get$1; });
 const _lazy_z5cH3q = () => Promise.resolve().then(function () { return renderer$1; });
 
 const handlers = [
@@ -1538,6 +1555,8 @@ const handlers = [
   { route: '/api/clients', handler: _lazy_QOZdhn, lazy: true, middleware: false, method: undefined },
   { route: '/api/clientsByMonth', handler: _lazy_bWjsom, lazy: true, middleware: false, method: undefined },
   { route: '/api/dashboardStats', handler: _lazy_ZEzMop, lazy: true, middleware: false, method: undefined },
+  { route: '/api/extract/latest', handler: _lazy_fTUl4M, lazy: true, middleware: false, method: "get" },
+  { route: '/api/extracts', handler: _lazy_tzrfPB, lazy: true, middleware: false, method: "get" },
   { route: '/__nuxt_error', handler: _lazy_z5cH3q, lazy: true, middleware: false, method: undefined },
   { route: '/__nuxt_island/**', handler: _SxA8c9, lazy: false, middleware: false, method: undefined },
   { route: '/**', handler: _lazy_z5cH3q, lazy: true, middleware: false, method: undefined }
@@ -1888,7 +1907,7 @@ async function analyzeDocumentWithAltModel(buffer) {
   return await poller.pollUntilDone();
 }
 
-const prisma$3 = new PrismaClient();
+const prisma$5 = new PrismaClient();
 const analyze_post = defineEventHandler(async (event) => {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;
   const form = new IncomingForm();
@@ -1904,8 +1923,6 @@ const analyze_post = defineEventHandler(async (event) => {
   const modelField = (_a = data.fields) == null ? void 0 : _a.model;
   const modelValue = Array.isArray(modelField) ? modelField[0] : modelField;
   const useAltModel = modelValue === "alt";
-  console.log("Raw fields from form:", data.fields);
-  console.log("Normalized model param:", modelValue);
   const resultAzure = useAltModel ? await analyzeDocumentWithAltModel(buffer) : await analyzeDocumentWithCustomModel(buffer);
   const modelUsed = useAltModel ? "alt" : "default";
   const fields = ((_c = (_b = resultAzure == null ? void 0 : resultAzure.documents) == null ? void 0 : _b[0]) == null ? void 0 : _c.fields) || {};
@@ -1925,9 +1942,9 @@ const analyze_post = defineEventHandler(async (event) => {
       console.warn("Date parsing failed:", effectiveFromRaw);
     }
   }
-  let fileRecord = await prisma$3.files.findUnique({ where: { sha256 } });
+  let fileRecord = await prisma$5.files.findUnique({ where: { sha256 } });
   if (!fileRecord) {
-    fileRecord = await prisma$3.files.create({
+    fileRecord = await prisma$5.files.create({
       data: {
         file_name: file.originalFilename,
         file_size: file.size,
@@ -1936,20 +1953,20 @@ const analyze_post = defineEventHandler(async (event) => {
       }
     });
   }
-  const company = await prisma$3.company.create({
+  const company = await prisma$5.company.create({
     data: { company_name: companyName, company_address: address }
   });
-  const site = await prisma$3.sites.create({
+  const site = await prisma$5.sites.create({
     data: { company_id: company.company_id, site_name: siteName }
   });
-  let task = await prisma$3.tasks.findFirst({ where: { task_name: taskName } });
+  let task = await prisma$5.tasks.findFirst({ where: { task_name: taskName } });
   if (!task) {
-    task = await prisma$3.tasks.create({ data: { task_name: taskName } });
+    task = await prisma$5.tasks.create({ data: { task_name: taskName } });
   }
-  const areaTask = await prisma$3.area_tasks.create({
+  const areaTask = await prisma$5.area_tasks.create({
     data: { site_id: site.site_id, task_id: task.task_id }
   });
-  const schedule = await prisma$3.schedules.create({
+  const schedule = await prisma$5.schedules.create({
     data: { area_task_id: areaTask.area_task_id, rule_type: scheduleRule, effective_from: effectiveFrom }
   });
   const rawTable = (_q = (_p = fields.Area_based_task) == null ? void 0 : _p.values) != null ? _q : [];
@@ -1962,23 +1979,32 @@ const analyze_post = defineEventHandler(async (event) => {
     }
     return rowObj;
   });
+  const simplifiedResult = {
+    message: "Inserted successfully",
+    modelUsed,
+    fileId: fileRecord.file_id.toString(),
+    siteId: site.site_id.toString(),
+    taskId: task.task_id.toString(),
+    areaTaskId: areaTask.area_task_id.toString(),
+    scheduleId: schedule.schedule_id.toString(),
+    companyName,
+    address,
+    siteName,
+    taskName,
+    scheduleRule,
+    effectiveFrom,
+    areaBasedTaskTable
+  };
+  const extractContent = await prisma$5.extract_content.create({
+    data: {
+      file_id: fileRecord.file_id,
+      raw_content: simplifiedResult
+    }
+  });
   return {
     result: {
-      message: "Inserted successfully",
-      modelUsed,
-      // ✅ 前端可以看到调用了哪个模型
-      fileId: fileRecord.file_id.toString(),
-      siteId: site.site_id.toString(),
-      taskId: task.task_id.toString(),
-      areaTaskId: areaTask.area_task_id.toString(),
-      scheduleId: schedule.schedule_id.toString(),
-      companyName,
-      address,
-      siteName,
-      taskName,
-      scheduleRule,
-      effectiveFrom,
-      areaBasedTaskTable
+      ...simplifiedResult,
+      extractContentId: extractContent.id.toString()
     }
   };
 });
@@ -1988,10 +2014,10 @@ const analyze_post$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProp
   default: analyze_post
 }, Symbol.toStringTag, { value: 'Module' }));
 
-const prisma$2 = new PrismaClient();
+const prisma$4 = new PrismaClient();
 const clients = defineEventHandler(async () => {
   try {
-    const companies = await prisma$2.company.findMany({
+    const companies = await prisma$4.company.findMany({
       include: {
         sites: {
           include: {
@@ -2023,9 +2049,9 @@ const clients$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty(
   default: clients
 }, Symbol.toStringTag, { value: 'Module' }));
 
-const prisma$1 = new PrismaClient();
+const prisma$3 = new PrismaClient();
 const clientsByMonth = defineEventHandler(async () => {
-  const result = await prisma$1.$queryRaw`
+  const result = await prisma$3.$queryRaw`
     SELECT 
       TO_CHAR(DATE_TRUNC('month', uploaded_at), 'YYYY-MM') AS month,
       COUNT(DISTINCT file_id) AS count
@@ -2044,12 +2070,12 @@ const clientsByMonth$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.definePr
   default: clientsByMonth
 }, Symbol.toStringTag, { value: 'Module' }));
 
-const prisma = new PrismaClient();
+const prisma$2 = new PrismaClient();
 const dashboardStats = defineEventHandler(async () => {
-  const totalClients = await prisma.company.count();
-  const totalSites = await prisma.sites.count();
-  const totalAllocations = await prisma.area_tasks.count();
-  const pending = await prisma.schedules.count({
+  const totalClients = await prisma$2.company.count();
+  const totalSites = await prisma$2.sites.count();
+  const totalAllocations = await prisma$2.area_tasks.count();
+  const pending = await prisma$2.schedules.count({
     where: { effective_from: null }
   });
   return {
@@ -2063,6 +2089,59 @@ const dashboardStats = defineEventHandler(async () => {
 const dashboardStats$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
   __proto__: null,
   default: dashboardStats
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const prisma$1 = new PrismaClient();
+const latest_get = defineEventHandler(async () => {
+  var _a;
+  try {
+    const latest = await prisma$1.extract_content.findFirst({
+      orderBy: { created_at: "desc" },
+      include: { files: true }
+    });
+    if (!latest) {
+      return null;
+    }
+    return {
+      result: {
+        id: latest.id.toString(),
+        fileId: latest.file_id.toString(),
+        created_at: latest.created_at,
+        file_name: ((_a = latest.files) == null ? void 0 : _a.file_name) || null,
+        ...latest.raw_content
+      }
+    };
+  } catch (err) {
+    console.error("Error fetching latest extract_content:", err);
+    throw createError({
+      statusCode: 500,
+      statusMessage: "Failed to fetch latest extract_content"
+    });
+  }
+});
+
+const latest_get$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: latest_get
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const prisma = new PrismaClient();
+const extracts_get = defineEventHandler(async () => {
+  const extracts = await prisma.extract_content.findMany({
+    orderBy: { created_at: "desc" },
+    include: { files: true }
+  });
+  return extracts.map((e) => ({
+    id: e.id,
+    fileName: e.files.file_name,
+    createdAt: e.created_at,
+    raw: e.raw_content
+  }));
+});
+
+const extracts_get$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: extracts_get
 }, Symbol.toStringTag, { value: 'Module' }));
 
 function renderPayloadResponse(ssrContext) {

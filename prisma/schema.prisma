@@ -8,12 +8,14 @@ datasource db {
 }
 
 model files {
-  file_id     BigInt   @id @default(autoincrement())
+  file_id     BigInt            @id @default(autoincrement())
   file_name   String
   file_type   String?
   file_size   BigInt?
-  sha256      String?  @unique
-  uploaded_at DateTime @default(now())
+  sha256      String?           @unique
+  uploaded_at DateTime          @default(now())
+
+  extract_contents extract_content[]
 }
 
 model company {
@@ -71,4 +73,13 @@ enum schedule_rule {
   WEEKLY
   MONTHLY
   ONE_OFF
+}
+
+model extract_content {
+  id          BigInt   @id @default(autoincrement())
+  file_id     BigInt
+  raw_content Json
+  created_at  DateTime @default(now())
+
+  files files @relation(fields: [file_id], references: [file_id], onDelete: Cascade)
 }

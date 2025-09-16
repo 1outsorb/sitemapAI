@@ -24,10 +24,9 @@
         <button
           @click="openModal('alt')"
           class="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400 shadow transition"
-     >
+        >
           Upload File (Alt Model)
         </button>
-
 
         <input
           v-model="search"
@@ -75,12 +74,12 @@
           <div class="font-semibold text-lg mb-3">
             Azure Analyze Result
             <span v-if="result.modelUsed" class="ml-2 text-sm text-gray-500">
-    (model: {{ result.modelUsed }})
-  </span>
+              (model: {{ result.modelUsed }})
+            </span>
           </div>
 
           <pre class="text-sm text-gray-800 bg-gray-50 rounded p-4 overflow-x-auto">
-{{ pretty(result) }}
+{{ pretty(result.raw_content || result) }}
           </pre>
 
           <div v-if="result.areaBasedTaskTable?.length" class="mt-6">
@@ -257,12 +256,12 @@ function onPick (e) {
   }
 
   const okType =
-  f.type === 'application/pdf' ||
-  f.type === 'image/jpeg' ||
-  f.type === 'image/png' ||
-  f.type === 'image/tiff' ||
-  f.type === 'image/bmp' ||
-  /\.(pdf|jpeg|jpg|png|tif|tiff|bmp)$/i.test(f.name)
+    f.type === 'application/pdf' ||
+    f.type === 'image/jpeg' ||
+    f.type === 'image/png' ||
+    f.type === 'image/tiff' ||
+    f.type === 'image/bmp' ||
+    /\.(pdf|jpeg|jpg|png|tif|tiff|bmp)$/i.test(f.name)
 
   if (!okType) {
     modalError.value = 'Only PDF/DOC/DOCX files are allowed.'
@@ -297,14 +296,12 @@ async function onUpload () {
     })
 
     result.value = res.result
-
     closeModal()
   } catch (err) {
     errorMsg.value = (err?.data?.message) || err?.message || 'Upload failed'
     uploading.value = false
   }
 }
-
 
 /** ----- esc to close modal ----- */
 function escClose (e) {
@@ -321,6 +318,15 @@ onMounted(async () => {
     rows.value = await $fetch('/api/clients')
   } catch (err) {
     errorMsg.value = err?.message || 'Failed to load clients'
+  }
+
+  try {
+    const latestExtract = await $fetch('/api/extract/latest')
+    if (latestExtract) {
+      result.value = latestExtract
+    }
+  } catch (err) {
+    console.warn('No extract_content found yet')
   }
 })
 
