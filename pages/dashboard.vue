@@ -51,7 +51,7 @@
     <!-- EChart Bar -->
     <div class="max-w-6xl mx-auto px-8 mb-8">
       <div class="bg-white rounded-xl shadow p-6">
-        <div class="font-semibold text-lg mb-4 text-[#2C2F3A]">Clients by Suburb</div>
+        
         <EChartLine />
       </div>
     </div>
